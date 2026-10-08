@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Jersey Body and Sleeves Silhouette -->
+    <!-- Main Shirt Body -->
+    <path
+        android:pathData="M44,30 C47,35 61,35 64,30 L73,34 L82,46 L74,53 L68,46 L68,78 L40,78 L40,46 L34,53 L26,46 L35,34 Z"
+        android:fillColor="#22C55E" />
+    <!-- Collar & Neckline Trim -->
+    <path
+        android:pathData="M44,30 C47,38 61,38 64,30 C58,34 50,34 44,30 Z"
+        android:fillColor="#FFFFFF" />
+    <!-- Jersey Contrast Side Panels -->
+    <path
+        android:pathData="M40,48 L44,48 L43,78 L40,78 Z"
+        android:fillColor="#15803D" />
+    <path
+        android:pathData="M68,48 L64,48 L65,78 L68,78 Z"
+        android:fillColor="#15803D" />
+    <!-- Chest Club Crest / Shield -->
+    <path
+        android:pathData="M46,44 L50,44 L50,48 C50,51 48,53 48,53 C48,53 46,51 46,48 Z"
+        android:fillColor="#EAB308" />
+    <!-- Chest Sponsor Band / Bar -->
+    <path
+        android:pathData="M46,57 L62,57 L62,60 L46,60 Z"
+        android:fillColor="#FFFFFF" />
+    <!-- Sleeve Trim -->
+    <path
+        android:pathData="M82,46 L74,53 L76,55 L84,48 Z"
+        android:fillColor="#EAB308" />
+    <path
+        android:pathData="M26,46 L34,53 L32,55 L24,48 Z"
+        android:fillColor="#EAB308" />
+</vector>

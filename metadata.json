@@ -1,0 +1,6 @@
+{
+  "name": "OpenKit Studio",
+  "description": "Open-source 3D football kit editor inspired by FIFA Kit Creator with customizable layers, procedural textures, and kit export.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
