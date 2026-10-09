@@ -4,8 +4,11 @@ import android.app.Application
 import android.graphics.Bitmap
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.engine.PatternItem
 import com.example.engine.TextureEngine
-import com.example.model.CollarStyle
+import com.example.model.CameraPreset
+import com.example.model.CollarTemplate
+import com.example.model.CompetitionBadge
 import com.example.model.KitComponentType
 import com.example.model.KitLayer
 import com.example.model.KitPatternType
@@ -14,8 +17,11 @@ import com.example.model.LayerMask
 import com.example.model.LayerType
 import com.example.model.LightingPreset
 import com.example.model.LogoType
-import com.example.model.ModelStyle
+import com.example.model.ModelFit
+import com.example.model.NumberConfig
+import com.example.model.PlayerNameConfig
 import com.example.model.PresetsData
+import com.example.model.SportType
 import com.example.model.TextFont
 import com.example.model.TransformState
 import kotlinx.coroutines.Dispatchers
@@ -26,12 +32,12 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Stack
-import kotlin.random.Random
 
 enum class StudioTab(val label: String) {
   VIEW_3D("3D View"),
   TEXTURE_2D("2D Texture"),
   MINIKIT_CARD("FUT Minikit"),
+  NUMBERS_NAMES("10 Numbers & Badges"),
   KIT_VISION_AI("Kit Vision AI")
 }
 
@@ -65,7 +71,6 @@ class KitEditorViewModel(application: Application) : AndroidViewModel(applicatio
   private val _isAutoRotating = MutableStateFlow(false)
   val isAutoRotating: StateFlow<Boolean> = _isAutoRotating.asStateFlow()
 
-  // UI Panels
   private val _isLayerInspectorOpen = MutableStateFlow(true)
   val isLayerInspectorOpen: StateFlow<Boolean> = _isLayerInspectorOpen.asStateFlow()
 
@@ -93,13 +98,60 @@ class KitEditorViewModel(application: Application) : AndroidViewModel(applicatio
   val canRedo: StateFlow<Boolean> = _canRedo.asStateFlow()
 
   init {
-    // Select first layer by default
     _selectedLayerId.value = _project.value.shirtLayers.firstOrNull()?.id
     renderAllTextures()
   }
 
   fun setTab(tab: StudioTab) {
     _activeTab.value = tab
+  }
+
+  fun setSport(sport: SportType) {
+    pushHistory()
+    _project.update { it.copy(sport = sport) }
+    _toastMessage.value = "Switched to ${sport.label}"
+    renderAllTextures()
+  }
+
+  fun setModelFit(modelFit: ModelFit) {
+    pushHistory()
+    _project.update { it.copy(modelFit = modelFit) }
+    _toastMessage.value = "Selected ${modelFit.label}"
+  }
+
+  fun setCollarTemplate(collar: CollarTemplate) {
+    pushHistory()
+    _project.update { it.copy(collarTemplate = collar) }
+    _toastMessage.value = "Selected ${collar.label}"
+  }
+
+  fun setCameraPreset(preset: CameraPreset) {
+    _project.update { it.copy(cameraPreset = preset) }
+    if (preset == CameraPreset.ROTATING) {
+      _isAutoRotating.value = true
+    } else {
+      _isAutoRotating.value = false
+      _cameraYaw.value = preset.yaw
+      _cameraPitch.value = preset.pitch
+    }
+  }
+
+  fun updateNumbers(config: NumberConfig) {
+    pushHistory()
+    _project.update { it.copy(numbers = config) }
+    renderAllTextures()
+  }
+
+  fun updatePlayerName(config: PlayerNameConfig) {
+    pushHistory()
+    _project.update { it.copy(playerName = config) }
+    renderAllTextures()
+  }
+
+  fun updateBadges(badges: List<CompetitionBadge>) {
+    pushHistory()
+    _project.update { it.copy(badges = badges) }
+    renderAllTextures()
   }
 
   fun selectComponent(component: KitComponentType) {
@@ -137,6 +189,7 @@ class KitEditorViewModel(application: Application) : AndroidViewModel(applicatio
     _cameraYaw.value = 0f
     _cameraPitch.value = 0f
     _cameraZoom.value = 1.0f
+    _isAutoRotating.value = false
   }
 
   fun toggleWireframe() {
@@ -207,17 +260,17 @@ class KitEditorViewModel(application: Application) : AndroidViewModel(applicatio
         patternFrequency = 6
       )
       LayerType.TEXT -> KitLayer(
-        name = "Player Name",
+        name = "Custom Text",
         type = LayerType.TEXT,
-        text = "RONALDO",
-        textFont = TextFont.ATHLETIC_BLOCK,
+        text = "OPENKIT",
+        textFont = TextFont.ANTON,
         primaryColor = 0xFFFFFFFFL,
         strokeWidth = 2f,
         strokeColor = 0xFF000000L,
         transform = TransformState(y = -30f)
       )
       LayerType.LOGO -> KitLayer(
-        name = "Brand Swoop",
+        name = "Brand Mark",
         type = LayerType.LOGO,
         logoType = LogoType.BRAND_SWOOSH,
         primaryColor = 0xFFFFFFFFL,
@@ -239,7 +292,7 @@ class KitEditorViewModel(application: Application) : AndroidViewModel(applicatio
         primaryColor = 0xFFEAB308L
       )
       LayerType.GROUP -> KitLayer(
-        name = "Layer Folder",
+        name = "Group 1",
         type = LayerType.GROUP
       )
     }
@@ -248,6 +301,28 @@ class KitEditorViewModel(application: Application) : AndroidViewModel(applicatio
     _project.update { it.updateLayersFor(comp, updatedLayers) }
     _selectedLayerId.value = newLayer.id
     _isLayerInspectorOpen.value = true
+    renderAllTextures()
+  }
+
+  fun addPatternFromLibrary(patternItem: PatternItem) {
+    pushHistory()
+    val comp = _selectedComponent.value
+    val currentLayers = _project.value.getLayersFor(comp)
+
+    val newLayer = KitLayer(
+      name = patternItem.name,
+      type = LayerType.PATTERN,
+      patternType = patternItem.patternType,
+      patternFrequency = patternItem.frequency,
+      primaryColor = patternItem.primaryColor,
+      secondaryColor = patternItem.secondaryColor,
+      patternAngle = patternItem.angle
+    )
+
+    val updatedLayers = listOf(newLayer) + currentLayers
+    _project.update { it.updateLayersFor(comp, updatedLayers) }
+    _selectedLayerId.value = newLayer.id
+    _toastMessage.value = "Added pattern: ${patternItem.name}"
     renderAllTextures()
   }
 
@@ -362,9 +437,9 @@ class KitEditorViewModel(application: Application) : AndroidViewModel(applicatio
   fun renderAllTextures() {
     viewModelScope.launch(Dispatchers.Default) {
       val p = _project.value
-      val shirtBmp = TextureEngine.renderComponentTexture(p, KitComponentType.SHIRT, 512, 512)
-      val shortsBmp = TextureEngine.renderComponentTexture(p, KitComponentType.SHORTS, 512, 512)
-      val socksBmp = TextureEngine.renderComponentTexture(p, KitComponentType.SOCKS, 512, 512)
+      val shirtBmp = TextureEngine.renderComponentTexture(p, KitComponentType.SHIRT, 1024, 1024)
+      val shortsBmp = TextureEngine.renderComponentTexture(p, KitComponentType.SHORTS, 1024, 1024)
+      val socksBmp = TextureEngine.renderComponentTexture(p, KitComponentType.SOCKS, 1024, 1024)
 
       withContext(Dispatchers.Main) {
         _shirtTextureBitmap.value = shirtBmp
@@ -374,12 +449,8 @@ class KitEditorViewModel(application: Application) : AndroidViewModel(applicatio
     }
   }
 
-  fun exportKitRender() {
-    _toastMessage.value = "Exported 3D Kit Snapshot (PNG) to device!"
-  }
-
-  fun exportTextureFlat() {
-    _toastMessage.value = "Exported 2048x2048 Flat Texture PNG!"
+  fun showToast(msg: String) {
+    _toastMessage.value = msg
   }
 
   fun saveProjectJson() {

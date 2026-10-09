@@ -113,7 +113,7 @@ object PresetsData {
     return KitProject(
       name = "Cyberpunk Neon 2027",
       teamName = "Cyber FC",
-      collarStyle = CollarStyle.V_NECK,
+      collarTemplate = CollarTemplate.COLLAR_1,
       collarColor = 0xFF22C55EL,
       collarTrimColor = 0xFF14171EL,
       shirtLayers = shirtLayers,
@@ -142,7 +142,7 @@ object PresetsData {
     return KitProject(
       name = "Milano Nerazzurri 26/27",
       teamName = "FC Internazionale",
-      collarStyle = CollarStyle.V_NECK,
+      collarTemplate = CollarTemplate.COLLAR_1,
       collarColor = 0xFF0A0A0AL,
       collarTrimColor = 0xFFEAB308L,
       shirtLayers = shirtLayers,
@@ -164,7 +164,7 @@ object PresetsData {
     return KitProject(
       name = "Blaugrana Barcelona Home",
       teamName = "FC Barcelona",
-      collarStyle = CollarStyle.CREW_NECK,
+      collarTemplate = CollarTemplate.COLLAR_0,
       collarColor = 0xFFEAB308L,
       shirtLayers = shirtLayers,
       shortsLayers = listOf(KitLayer(name = "Blue Shorts", type = LayerType.BASE_DESIGN, primaryColor = 0xFF003882L)),
@@ -185,7 +185,7 @@ object PresetsData {
     return KitProject(
       name = "Rossoneri Strike 26/27",
       teamName = "AC Milan",
-      collarStyle = CollarStyle.V_NECK,
+      collarTemplate = CollarTemplate.COLLAR_1,
       collarColor = 0xFF0A0A0AL,
       shirtLayers = shirtLayers,
       shortsLayers = listOf(KitLayer(name = "Black Shorts", type = LayerType.BASE_DESIGN, primaryColor = 0xFF0A0A0AL)),
@@ -206,7 +206,7 @@ object PresetsData {
     return KitProject(
       name = "Madrid Galácticos Blanc",
       teamName = "Real Madrid CF",
-      collarStyle = CollarStyle.POLO_BUTTON,
+      collarTemplate = CollarTemplate.COLLAR_2,
       collarColor = 0xFFF8FAFCL,
       collarTrimColor = 0xFFEAB308L,
       shirtLayers = shirtLayers,
@@ -228,7 +228,7 @@ object PresetsData {
     return KitProject(
       name = "Celeste Diagonal Sash",
       teamName = "Celeste Sporting",
-      collarStyle = CollarStyle.V_NECK,
+      collarTemplate = CollarTemplate.COLLAR_1,
       collarColor = 0xFFFFFFFFL,
       shirtLayers = shirtLayers,
       shortsLayers = listOf(KitLayer(name = "Black Shorts", type = LayerType.BASE_DESIGN, primaryColor = 0xFF0F172AL)),
@@ -249,7 +249,7 @@ object PresetsData {
     return KitProject(
       name = "Bianconeri Zebra Classic",
       teamName = "Juventus FC",
-      collarStyle = CollarStyle.CREW_NECK,
+      collarTemplate = CollarTemplate.COLLAR_0,
       collarColor = 0xFF0F172AL,
       shirtLayers = shirtLayers,
       shortsLayers = listOf(KitLayer(name = "White Shorts", type = LayerType.BASE_DESIGN, primaryColor = 0xFFFFFFFFL)),
@@ -270,7 +270,7 @@ object PresetsData {
     return KitProject(
       name = "Azzurri Renaissance 2026",
       teamName = "Nazionale Azzurra",
-      collarStyle = CollarStyle.V_NECK,
+      collarTemplate = CollarTemplate.COLLAR_1,
       collarColor = 0xFF1E3A8AL,
       collarTrimColor = 0xFFFACC15L,
       shirtLayers = shirtLayers,

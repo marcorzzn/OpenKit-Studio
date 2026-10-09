@@ -150,7 +150,9 @@ fun Viewport3D(
         zoom = zoom,
         showWireframe = isWireframe,
         lightingPreset = project.lightingPreset,
-        modelStyle = project.modelStyle
+        modelFit = project.modelFit,
+        collarTemplate = project.collarTemplate,
+        sportType = project.sport
       )
     }
 

@@ -10,11 +10,11 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
-import com.example.model.CollarStyle
-import com.example.model.KitComponentType
+import com.example.model.CollarTemplate
 import com.example.model.KitProject
 import com.example.model.LightingPreset
-import com.example.model.ModelStyle
+import com.example.model.ModelFit
+import com.example.model.SportType
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.max
@@ -48,6 +48,7 @@ enum class MeshPart {
   TORSO_BACK,
   TORSO_FLANK,
   COLLAR,
+  COLLAR_TRIM,
   SLEEVE_LEFT,
   SLEEVE_RIGHT,
   CUFF_LEFT,
@@ -63,7 +64,7 @@ enum class MeshPart {
 
 data class Poly3D(
   val vertices: List<Vec3>,
-  val uv: List<Pair<Float, Float>>, // U, V normalized [0..1]
+  val uv: List<Pair<Float, Float>>,
   val part: MeshPart,
   val baseColor: Long = 0xFFFFFFFFL
 )
@@ -79,12 +80,11 @@ class Kit3DRenderer {
   private fun buildMannequinModel() {
     modelPolygons.clear()
 
-    // 1. TORSO / JERSEY (Front & Back chest, ribcage, waist, hips)
-    // Slices from neck (+140) to waist (+10)
+    // 1. Torso Mesh (Slices from neck +140 to waist 0)
     val torsoY = listOf(140f, 105f, 70f, 35f, 0f)
-    val torsoR = listOf(36f, 44f, 42f, 39f, 40f) // radii along Y
-
+    val torsoR = listOf(36f, 44f, 42f, 39f, 40f)
     val numSegments = 16
+
     for (i in 0 until torsoY.size - 1) {
       val yTop = torsoY[i]
       val yBottom = torsoY[i + 1]
@@ -92,19 +92,18 @@ class Kit3DRenderer {
       val rBottom = torsoR[i + 1]
 
       for (seg in 0 until numSegments) {
-        val angle1 = (seg * 2 * PI / numSegments).toFloat()
-        val angle2 = ((seg + 1) * 2 * PI / numSegments).toFloat()
+        val a1 = (seg * 2 * PI / numSegments).toFloat()
+        val a2 = ((seg + 1) * 2 * PI / numSegments).toFloat()
 
-        // Elliptical chest: slightly wider in X than in Z
-        val x1Top = cos(angle1) * rTop * 1.25f
-        val z1Top = sin(angle1) * rTop * 0.85f
-        val x2Top = cos(angle2) * rTop * 1.25f
-        val z2Top = sin(angle2) * rTop * 0.85f
+        val x1Top = cos(a1) * rTop * 1.25f
+        val z1Top = sin(a1) * rTop * 0.85f
+        val x2Top = cos(a2) * rTop * 1.25f
+        val z2Top = sin(a2) * rTop * 0.85f
 
-        val x1Bot = cos(angle1) * rBottom * 1.25f
-        val z1Bot = sin(angle1) * rBottom * 0.85f
-        val x2Bot = cos(angle2) * rBottom * 1.25f
-        val z2Bot = sin(angle2) * rBottom * 0.85f
+        val x1Bot = cos(a1) * rBottom * 1.25f
+        val z1Bot = sin(a1) * rBottom * 0.85f
+        val x2Bot = cos(a2) * rBottom * 1.25f
+        val z2Bot = sin(a2) * rBottom * 0.85f
 
         val midZ = (z1Top + z2Top + z1Bot + z2Bot) / 4f
         val part = when {
@@ -113,7 +112,6 @@ class Kit3DRenderer {
           else -> MeshPart.TORSO_FLANK
         }
 
-        // UV mapping
         val u1 = seg.toFloat() / numSegments
         val u2 = (seg + 1).toFloat() / numSegments
         val v1 = i.toFloat() / (torsoY.size - 1)
@@ -134,7 +132,7 @@ class Kit3DRenderer {
       }
     }
 
-    // 2. COLLAR RING
+    // 2. Collar Ring (12 radial segments)
     for (seg in 0 until 12) {
       val a1 = (seg * 2 * PI / 12).toFloat()
       val a2 = ((seg + 1) * 2 * PI / 12).toFloat()
@@ -155,14 +153,14 @@ class Kit3DRenderer {
       )
     }
 
-    // 3. SLEEVES (Left & Right)
+    // 3. Sleeves
     buildSleeve(isLeft = true)
     buildSleeve(isLeft = false)
 
-    // 4. SHORTS (Pelvis, Left Leg, Right Leg)
+    // 4. Shorts
     buildShorts()
 
-    // 5. SOCKS & BOOTS
+    // 5. Socks & Boots
     buildSocksAndBoots()
   }
 
@@ -198,7 +196,6 @@ class Kit3DRenderer {
         )
       )
 
-      // Sleeve Cuff Band
       val cuffPart = if (isLeft) MeshPart.CUFF_LEFT else MeshPart.CUFF_RIGHT
       val cuffEdge1 = v4 + Vec3(sign * 4f, -4f, 0f)
       val cuffEdge2 = v3 + Vec3(sign * 4f, -4f, 0f)
@@ -217,7 +214,6 @@ class Kit3DRenderer {
     val midY = -25f
     val botY = -60f
 
-    // Waistband to mid-crotch
     for (seg in 0 until 12) {
       val a1 = (seg * 2 * PI / 12).toFloat()
       val a2 = ((seg + 1) * 2 * PI / 12).toFloat()
@@ -238,7 +234,6 @@ class Kit3DRenderer {
       )
     }
 
-    // Left and Right Leg Thighs
     buildShortsLeg(centerX = -19f, isLeft = true, startY = midY, endY = botY)
     buildShortsLeg(centerX = 19f, isLeft = false, startY = midY, endY = botY)
   }
@@ -298,7 +293,6 @@ class Kit3DRenderer {
       )
     }
 
-    // Boots (Cleats)
     val bootY = -150f
     val soleY = -165f
     val bPart = if (isLeft) MeshPart.BOOT_LEFT else MeshPart.BOOT_RIGHT
@@ -317,9 +311,6 @@ class Kit3DRenderer {
     )
   }
 
-  /**
-   * Draws the 3D football kit onto a Jetpack Compose DrawScope.
-   */
   fun render(
     drawScope: DrawScope,
     project: KitProject,
@@ -331,7 +322,9 @@ class Kit3DRenderer {
     zoom: Float = 1.0f,
     showWireframe: Boolean = false,
     lightingPreset: LightingPreset = LightingPreset.STUDIO_NEUTRAL,
-    modelStyle: ModelStyle = ModelStyle.STANDARD
+    modelFit: ModelFit = ModelFit.MODEL_0,
+    collarTemplate: CollarTemplate = CollarTemplate.COLLAR_1,
+    sportType: SportType = SportType.FOOTBALL
   ) {
     val w = drawScope.size.width
     val h = drawScope.size.height
@@ -346,7 +339,6 @@ class Kit3DRenderer {
     val cosP = cos(radPitch)
     val sinP = sin(radPitch)
 
-    // Directional Light Vector based on lighting preset
     val lightDir = when (lightingPreset) {
       LightingPreset.STUDIO_NEUTRAL -> Vec3(0.5f, 0.7f, 0.6f).normalized()
       LightingPreset.STADIUM_NIGHT -> Vec3(0.1f, 0.9f, 0.3f).normalized()
@@ -357,7 +349,6 @@ class Kit3DRenderer {
     val cameraDistance = 450f
     val fov = 420f * zoom
 
-    // Transformed Polygon structure
     data class TransformedPoly(
       val screenPoints: List<Offset>,
       val avgZ: Float,
@@ -370,38 +361,68 @@ class Kit3DRenderer {
     val transformedList = mutableListOf<TransformedPoly>()
 
     for (poly in modelPolygons) {
+      // If Basketball, hide sleeve polygons (sleeveless tank jersey)
+      if (sportType == SportType.BASKETBALL && (poly.part == MeshPart.SLEEVE_LEFT || poly.part == MeshPart.SLEEVE_RIGHT)) {
+        continue
+      }
+
       val transformedVerts = poly.vertices.map { v ->
-        // Model style adjustments (e.g. Fitted Athletic has slightly broader shoulders & narrower waist)
         var px = v.x
         var py = v.y
         var pz = v.z
-        if (modelStyle == ModelStyle.FITTED) {
-          if (py > 60f) px *= 1.08f // Broader shoulders
-          if (py in 0f..60f) px *= 0.94f // Tapered athletic waist
-        } else if (modelStyle == ModelStyle.HANGER) {
-          pz *= 0.35f // Flatter presentation
+
+        // ModelFit adjustments (Model 0 - Model 4)
+        when (modelFit) {
+          ModelFit.MODEL_0 -> { // Fitted / tight
+            if (py > 60f) px *= 1.08f
+            if (py in 0f..60f) px *= 0.92f
+          }
+          ModelFit.MODEL_1 -> {} // Regular
+          ModelFit.MODEL_2 -> { // Loose classic
+            px *= 1.15f
+            pz *= 1.12f
+          }
+          ModelFit.MODEL_3 -> { // Hanger
+            pz *= 0.30f
+          }
+          ModelFit.MODEL_4 -> { // Flying
+            px *= 1.06f
+            if (py < 0f) py += 5f
+          }
         }
 
-        // 1. Yaw rotation (around Y)
+        // Collar Template procedural geometry shaping
+        if (poly.part == MeshPart.COLLAR) {
+          when (collarTemplate) {
+            CollarTemplate.COLLAR_1, CollarTemplate.COLLAR_3 -> { // V-Neck
+              if (pz > 0f) py -= 8f
+            }
+            CollarTemplate.COLLAR_2, CollarTemplate.COLLAR_5 -> { // Polo collar
+              if (py > 140f) px *= 1.12f
+            }
+            CollarTemplate.COLLAR_4, CollarTemplate.COLLAR_9 -> { // Stand / Mock
+              py += 5f
+            }
+            else -> {}
+          }
+        }
+
+        // Yaw & Pitch rotation
         val x1 = px * cosY + pz * sinY
         val z1 = -px * sinY + pz * cosY
 
-        // 2. Pitch rotation (around X)
         val y2 = py * cosP - z1 * sinP
         val z2 = py * sinP + z1 * cosP
 
         Vec3(x1, y2, z2)
       }
 
-      // Normal vector of the polygon
       val e1 = transformedVerts[1] - transformedVerts[0]
       val e2 = transformedVerts[2] - transformedVerts[0]
       val normal = e1.cross(e2).normalized()
 
-      // Backface culling: if normal.z <= -0.15f, face points away
       if (normal.z <= -0.2f) continue
 
-      // Screen projection
       val screenPoints = transformedVerts.map { v ->
         val scale = fov / (cameraDistance + v.z)
         val sx = centerX + v.x * scale
@@ -423,10 +444,8 @@ class Kit3DRenderer {
       )
     }
 
-    // Painter's algorithm: sort by depth descending
     transformedList.sortBy { it.avgZ }
 
-    // Reusable Paint
     val fillPaint = Paint().apply {
       isAntiAlias = true
       style = PaintingStyle.Fill
@@ -440,8 +459,6 @@ class Kit3DRenderer {
     }
 
     drawScope.drawIntoCanvas { canvas ->
-      val nativeCanvas = canvas.nativeCanvas
-
       for (poly in transformedList) {
         val path = Path().apply {
           moveTo(poly.screenPoints[0].x, poly.screenPoints[0].y)
@@ -451,7 +468,6 @@ class Kit3DRenderer {
           close()
         }
 
-        // Lighting calculation
         val dot = max(0f, poly.normal.dot(lightDir))
         val ambient = when (lightingPreset) {
           LightingPreset.STUDIO_NEUTRAL -> 0.40f
@@ -461,14 +477,12 @@ class Kit3DRenderer {
         }
         val lightFactor = (ambient + dot * 0.60f).coerceIn(0.1f, 1.25f)
 
-        // Specular highlight based on project.globalShininess
         val viewDir = Vec3(0f, 0f, 1f)
         val halfVec = (lightDir + viewDir).normalized()
         val specAngle = max(0f, poly.normal.dot(halfVec))
         val shininessExp = (project.globalShininess * 0.4f).coerceAtLeast(4f)
         val specFactor = Math.pow(specAngle.toDouble(), shininessExp.toDouble()).toFloat() * (project.globalShininess / 100f)
 
-        // Texture color sampling
         val sampledColor = sampleColorForPart(
           poly.part,
           poly.uv,
@@ -479,13 +493,10 @@ class Kit3DRenderer {
           poly.baseColor
         )
 
-        // Apply Shading to sampled color
         val shadedColor = applyLightToColor(sampledColor, lightFactor, specFactor)
-
         fillPaint.color = shadedColor
         canvas.drawPath(path, fillPaint)
 
-        // Subtle fabric mesh texture lines if roughness enabled
         if (project.fabricRoughness > 15f && poly.part in listOf(MeshPart.TORSO_FRONT, MeshPart.TORSO_BACK)) {
           canvas.drawPath(path, strokePaint)
         }
@@ -520,9 +531,7 @@ class Kit3DRenderer {
         }
       }
 
-      MeshPart.COLLAR -> {
-        Color(project.collarColor)
-      }
+      MeshPart.COLLAR, MeshPart.COLLAR_TRIM -> Color(project.collarColor)
 
       MeshPart.CUFF_LEFT, MeshPart.CUFF_RIGHT -> {
         val cuffLayer = project.shirtLayers.firstOrNull { it.type == com.example.model.LayerType.SLEEVE_CUFFS }
@@ -547,9 +556,7 @@ class Kit3DRenderer {
         }
       }
 
-      MeshPart.BOOT_LEFT, MeshPart.BOOT_RIGHT -> {
-        Color(fallbackColor)
-      }
+      MeshPart.BOOT_LEFT, MeshPart.BOOT_RIGHT -> Color(fallbackColor)
     }
   }
 

@@ -27,11 +27,8 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.LinkOff
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.LockOpen
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -61,8 +58,10 @@ import com.example.model.KitLayer
 import com.example.model.KitPatternType
 import com.example.model.LayerBlendMode
 import com.example.model.LayerMask
+import com.example.model.LayerPlacement
 import com.example.model.LayerType
 import com.example.model.LogoType
+import com.example.model.PlacementPreset
 import com.example.model.TextFont
 import com.example.ui.theme.AccentGold
 import com.example.ui.theme.AccentGreen
@@ -98,16 +97,14 @@ fun LayerInspector(
     return
   }
 
-  var colorPickerTarget by remember { mutableStateOf<String?>(null) } // "primary", "secondary", "stroke"
+  var colorPickerTarget by remember { mutableStateOf<String?>(null) }
 
-  // Collapsible section toggles
+  var isLogoPlacementExpanded by remember { mutableStateOf(true) }
   var isTransformExpanded by remember { mutableStateOf(true) }
+  var isEffectsExpanded by remember { mutableStateOf(true) }
   var isAppearanceExpanded by remember { mutableStateOf(true) }
-  var isPatternExpanded by remember { mutableStateOf(true) }
-  var isTextExpanded by remember { mutableStateOf(true) }
-  var isLogoExpanded by remember { mutableStateOf(true) }
   var isMaskExpanded by remember { mutableStateOf(true) }
-  var isMaterialExpanded by remember { mutableStateOf(false) }
+  var isMaterialExpanded by remember { mutableStateOf(true) }
 
   Column(
     modifier = modifier
@@ -118,7 +115,7 @@ fun LayerInspector(
       .verticalScroll(rememberScrollState()),
     verticalArrangement = Arrangement.spacedBy(8.dp)
   ) {
-    // 1. Header: Layer Name & Type
+    // 1. Header: Layer Name & Close
     Row(
       modifier = Modifier.fillMaxWidth(),
       verticalAlignment = Alignment.CenterVertically,
@@ -130,9 +127,7 @@ fun LayerInspector(
           onValueChange = { newName -> onUpdateLayer { it.copy(name = newName) } },
           label = { Text("Layer Name", fontSize = 10.sp) },
           singleLine = true,
-          modifier = Modifier
-            .fillMaxWidth()
-            .testTag("inspector_layer_name"),
+          modifier = Modifier.fillMaxWidth(),
           colors = OutlinedTextFieldDefaults.colors(
             focusedContainerColor = StudioPanelElevated,
             unfocusedContainerColor = StudioPanelElevated,
@@ -168,7 +163,7 @@ fun LayerInspector(
       }
 
       Text(
-        text = "⚡ Free Unlimited Positioning",
+        text = "⚡ 100% Free Custom Positioning",
         color = AccentGold,
         fontSize = 10.sp,
         fontWeight = FontWeight.Medium
@@ -177,49 +172,166 @@ fun LayerInspector(
 
     HorizontalDivider(color = StudioBorder)
 
-    // 2. TRANSFORM SECTION
+    // 2. LOGO / GRAPHIC PLACEMENT SECTION (Modulo 1)
+    if (layer.type in listOf(LayerType.LOGO, LayerType.GRAPHIC, LayerType.TEXT)) {
+      CollapsibleSection(
+        title = "Placement & Presets",
+        isExpanded = isLogoPlacementExpanded,
+        onToggle = { isLogoPlacementExpanded = !isLogoPlacementExpanded }
+      ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+          // Placement Presets Dropdown
+          var placementPresetMenu by remember { mutableStateOf(false) }
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Text("Placement Preset:", color = TextSecondary, fontSize = 11.sp)
+            Box {
+              Box(
+                modifier = Modifier
+                  .clip(RoundedCornerShape(4.dp))
+                  .background(StudioPanelElevated)
+                  .border(1.dp, StudioBorder, RoundedCornerShape(4.dp))
+                  .clickable { placementPresetMenu = true }
+                  .padding(horizontal = 8.dp, vertical = 4.dp)
+              ) {
+                Text(layer.placementPreset.label, color = AccentGreen, fontSize = 11.sp)
+              }
+              DropdownMenu(expanded = placementPresetMenu, onDismissRequest = { placementPresetMenu = false }) {
+                PlacementPreset.values().forEach { pp ->
+                  DropdownMenuItem(
+                    text = { Text(pp.label, color = TextPrimary, fontSize = 11.sp) },
+                    onClick = {
+                      onUpdateLayer {
+                        it.copy(
+                          placementPreset = pp,
+                          transform = if (pp != PlacementPreset.CUSTOM) it.transform.copy(x = pp.x, y = pp.y) else it.transform
+                        )
+                      }
+                      placementPresetMenu = false
+                    }
+                  )
+                }
+              }
+            }
+          }
+
+          // Placement Dropdown (Front, Back, Sleeve left, Sleeve right, Collar, Hem)
+          var placementZoneMenu by remember { mutableStateOf(false) }
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Text("Placement Zone:", color = TextSecondary, fontSize = 11.sp)
+            Box {
+              Box(
+                modifier = Modifier
+                  .clip(RoundedCornerShape(4.dp))
+                  .background(StudioPanelElevated)
+                  .border(1.dp, StudioBorder, RoundedCornerShape(4.dp))
+                  .clickable { placementZoneMenu = true }
+                  .padding(horizontal = 8.dp, vertical = 4.dp)
+              ) {
+                Text(layer.placement.label, color = TextPrimary, fontSize = 11.sp)
+              }
+              DropdownMenu(expanded = placementZoneMenu, onDismissRequest = { placementZoneMenu = false }) {
+                LayerPlacement.values().forEach { lp ->
+                  DropdownMenuItem(
+                    text = { Text(lp.label, color = TextPrimary, fontSize = 11.sp) },
+                    onClick = { onUpdateLayer { it.copy(placement = lp) }; placementZoneMenu = false }
+                  )
+                }
+              }
+            }
+          }
+
+          // Fabric Print Toggle
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Text("Fabric Print (Sublimation Weave)", color = TextPrimary, fontSize = 11.sp)
+            Switch(
+              checked = layer.fabricPrint,
+              onCheckedChange = { fp -> onUpdateLayer { it.copy(fabricPrint = fp) } },
+              colors = SwitchDefaults.colors(checkedThumbColor = AccentGreen, checkedTrackColor = Color(0xFF14532D))
+            )
+          }
+
+          // Mirror & Mirror Center Toggles
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+              Text("Mirror", color = TextSecondary, fontSize = 11.sp)
+              Switch(
+                checked = layer.mirror,
+                onCheckedChange = { m -> onUpdateLayer { it.copy(mirror = m) } },
+                colors = SwitchDefaults.colors(checkedThumbColor = AccentGreen, checkedTrackColor = Color(0xFF14532D))
+              )
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+              Text("Mirror Center", color = TextSecondary, fontSize = 11.sp)
+              Switch(
+                checked = layer.mirrorCenter,
+                onCheckedChange = { mc -> onUpdateLayer { it.copy(mirrorCenter = mc) } },
+                colors = SwitchDefaults.colors(checkedThumbColor = AccentGreen, checkedTrackColor = Color(0xFF14532D))
+              )
+            }
+          }
+        }
+      }
+      HorizontalDivider(color = StudioBorder)
+    }
+
+    // 3. TRANSFORM SECTION
     CollapsibleSection(
-      title = "Transform",
+      title = "Transformation",
       isExpanded = isTransformExpanded,
       onToggle = { isTransformExpanded = !isTransformExpanded }
     ) {
       Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        // X & Y Offsets
+        // X & Y
         Row(
           modifier = Modifier.fillMaxWidth(),
           horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
           Column(modifier = Modifier.weight(1f)) {
-            Text("X Position: ${layer.transform.x.roundToInt()}%", color = TextSecondary, fontSize = 10.sp)
+            Text("Position (X): ${layer.transform.x.roundToInt()}%", color = TextSecondary, fontSize = 10.sp)
             Slider(
               value = layer.transform.x,
-              onValueChange = { vx -> onUpdateLayer { it.copy(transform = it.transform.copy(x = vx)) } },
+              onValueChange = { vx -> onUpdateLayer { it.copy(transform = it.transform.copy(x = vx), placementPreset = PlacementPreset.CUSTOM) } },
               valueRange = -80f..80f,
-              colors = SliderDefaults.colors(thumbColor = AccentGreen, activeTrackColor = AccentGreen),
-              modifier = Modifier.testTag("slider_transform_x")
+              colors = SliderDefaults.colors(thumbColor = AccentGreen, activeTrackColor = AccentGreen)
             )
           }
 
           Column(modifier = Modifier.weight(1f)) {
-            Text("Y Position: ${layer.transform.y.roundToInt()}%", color = TextSecondary, fontSize = 10.sp)
+            Text("Position (Y): ${layer.transform.y.roundToInt()}%", color = TextSecondary, fontSize = 10.sp)
             Slider(
               value = layer.transform.y,
-              onValueChange = { vy -> onUpdateLayer { it.copy(transform = it.transform.copy(y = vy)) } },
+              onValueChange = { vy -> onUpdateLayer { it.copy(transform = it.transform.copy(y = vy), placementPreset = PlacementPreset.CUSTOM) } },
               valueRange = -80f..80f,
-              colors = SliderDefaults.colors(thumbColor = AccentGreen, activeTrackColor = AccentGreen),
-              modifier = Modifier.testTag("slider_transform_y")
+              colors = SliderDefaults.colors(thumbColor = AccentGreen, activeTrackColor = AccentGreen)
             )
           }
         }
 
-        // Scale & Link
+        // Size / Scale
         Row(
           modifier = Modifier.fillMaxWidth(),
           verticalAlignment = Alignment.CenterVertically,
           horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
           Column(modifier = Modifier.weight(1f)) {
-            Text("Scale: ${(layer.transform.scaleX * 100).roundToInt()}%", color = TextSecondary, fontSize = 10.sp)
+            Text("Size: ${(layer.transform.scaleX * 100).roundToInt()}%", color = TextSecondary, fontSize = 10.sp)
             Slider(
               value = layer.transform.scaleX,
               onValueChange = { s ->
@@ -229,15 +341,12 @@ fun LayerInspector(
                 }
               },
               valueRange = 0.2f..2.5f,
-              colors = SliderDefaults.colors(thumbColor = AccentGreen, activeTrackColor = AccentGreen),
-              modifier = Modifier.testTag("slider_transform_scale")
+              colors = SliderDefaults.colors(thumbColor = AccentGreen, activeTrackColor = AccentGreen)
             )
           }
 
           IconButton(
-            onClick = {
-              onUpdateLayer { it.copy(transform = it.transform.copy(isLinked = !it.transform.isLinked)) }
-            },
+            onClick = { onUpdateLayer { it.copy(transform = it.transform.copy(isLinked = !it.transform.isLinked)) } },
             modifier = Modifier.size(32.dp)
           ) {
             Icon(
@@ -249,15 +358,40 @@ fun LayerInspector(
           }
         }
 
-        // Rotation (0 - 360 deg)
+        // Height Ratio & Saturation
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+          Column(modifier = Modifier.weight(1f)) {
+            Text("Height Ratio: ${layer.transform.heightRatio.roundToInt()}%", color = TextSecondary, fontSize = 10.sp)
+            Slider(
+              value = layer.transform.heightRatio,
+              onValueChange = { hr -> onUpdateLayer { it.copy(transform = it.transform.copy(heightRatio = hr)) } },
+              valueRange = -80f..80f,
+              colors = SliderDefaults.colors(thumbColor = AccentGreen, activeTrackColor = AccentGreen)
+            )
+          }
+
+          Column(modifier = Modifier.weight(1f)) {
+            Text("Saturation: ${layer.transform.saturation.roundToInt()}%", color = TextSecondary, fontSize = 10.sp)
+            Slider(
+              value = layer.transform.saturation,
+              onValueChange = { sat -> onUpdateLayer { it.copy(transform = it.transform.copy(saturation = sat)) } },
+              valueRange = 0f..200f,
+              colors = SliderDefaults.colors(thumbColor = AccentGreen, activeTrackColor = AccentGreen)
+            )
+          }
+        }
+
+        // Rotation (-180 to 180 deg)
         Column {
           Text("Rotation: ${layer.transform.rotation.roundToInt()}°", color = TextSecondary, fontSize = 10.sp)
           Slider(
             value = layer.transform.rotation,
             onValueChange = { rot -> onUpdateLayer { it.copy(transform = it.transform.copy(rotation = rot)) } },
-            valueRange = 0f..360f,
-            colors = SliderDefaults.colors(thumbColor = AccentGreen, activeTrackColor = AccentGreen),
-            modifier = Modifier.testTag("slider_transform_rotation")
+            valueRange = -180f..180f,
+            colors = SliderDefaults.colors(thumbColor = AccentGreen, activeTrackColor = AccentGreen)
           )
         }
       }
@@ -265,14 +399,45 @@ fun LayerInspector(
 
     HorizontalDivider(color = StudioBorder)
 
-    // 3. APPEARANCE SECTION
+    // 4. EFFECTS SECTION (Border, Blur)
     CollapsibleSection(
-      title = "Appearance",
+      title = "Effects (Border & Blur)",
+      isExpanded = isEffectsExpanded,
+      onToggle = { isEffectsExpanded = !isEffectsExpanded }
+    ) {
+      Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column {
+          Text("Border Outline: ${layer.border.roundToInt()}", color = TextSecondary, fontSize = 10.sp)
+          Slider(
+            value = layer.border,
+            onValueChange = { b -> onUpdateLayer { it.copy(border = b) } },
+            valueRange = 0f..20f,
+            colors = SliderDefaults.colors(thumbColor = AccentGreen, activeTrackColor = AccentGreen)
+          )
+        }
+
+        Column {
+          Text("Soft Blur: ${layer.blur.roundToInt()}", color = TextSecondary, fontSize = 10.sp)
+          Slider(
+            value = layer.blur,
+            onValueChange = { bl -> onUpdateLayer { it.copy(blur = bl) } },
+            valueRange = 0f..20f,
+            colors = SliderDefaults.colors(thumbColor = AccentGreen, activeTrackColor = AccentGreen)
+          )
+        }
+      }
+    }
+
+    HorizontalDivider(color = StudioBorder)
+
+    // 5. APPEARANCE & COMPOSITION SECTION
+    CollapsibleSection(
+      title = "Appearance & Blend",
       isExpanded = isAppearanceExpanded,
       onToggle = { isAppearanceExpanded = !isAppearanceExpanded }
     ) {
       Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        // Color Picker Row
+        // Color Picker Row + Recolor Button
         Row(
           modifier = Modifier.fillMaxWidth(),
           verticalAlignment = Alignment.CenterVertically,
@@ -291,7 +456,7 @@ fun LayerInspector(
                 .clickable { colorPickerTarget = "primary" }
             )
             Text(
-              text = "Primary: #" + String.format("%06X", (layer.primaryColor and 0x00FFFFFFL)),
+              text = "Color: #" + String.format("%06X", (layer.primaryColor and 0x00FFFFFFL)),
               color = TextPrimary,
               fontSize = 11.sp
             )
@@ -305,50 +470,11 @@ fun LayerInspector(
               .clickable { colorPickerTarget = "primary" }
               .padding(horizontal = 8.dp, vertical = 4.dp)
           ) {
-            Text("Edit Color", color = AccentGreen, fontSize = 10.sp)
+            Text("Recolor", color = AccentGreen, fontSize = 10.sp, fontWeight = FontWeight.Bold)
           }
         }
 
-        // Secondary Color if Pattern or Graphic
-        if (layer.type in listOf(LayerType.PATTERN, LayerType.GRAPHIC, LayerType.LOGO)) {
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-          ) {
-            Row(
-              verticalAlignment = Alignment.CenterVertically,
-              horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-              Box(
-                modifier = Modifier
-                  .size(28.dp)
-                  .clip(CircleShape)
-                  .background(layer.secondaryColorObj)
-                  .border(1.5.dp, StudioBorder, CircleShape)
-                  .clickable { colorPickerTarget = "secondary" }
-              )
-              Text(
-                text = "Secondary: #" + String.format("%06X", (layer.secondaryColor and 0x00FFFFFFL)),
-                color = TextPrimary,
-                fontSize = 11.sp
-              )
-            }
-
-            Box(
-              modifier = Modifier
-                .clip(RoundedCornerShape(4.dp))
-                .background(StudioPanelElevated)
-                .border(1.dp, StudioBorder, RoundedCornerShape(4.dp))
-                .clickable { colorPickerTarget = "secondary" }
-                .padding(horizontal = 8.dp, vertical = 4.dp)
-            ) {
-              Text("Edit Color", color = AccentGreen, fontSize = 10.sp)
-            }
-          }
-        }
-
-        // Opacity Slider
+        // Opacity
         Column {
           Text("Opacity: ${(layer.opacity * 100).roundToInt()}%", color = TextSecondary, fontSize = 10.sp)
           Slider(
@@ -359,7 +485,7 @@ fun LayerInspector(
           )
         }
 
-        // Blend Mode Selector
+        // Blend Mode
         var blendDropdownExpanded by remember { mutableStateOf(false) }
         Row(
           modifier = Modifier.fillMaxWidth(),
@@ -386,10 +512,7 @@ fun LayerInspector(
               LayerBlendMode.values().forEach { mode ->
                 DropdownMenuItem(
                   text = { Text(mode.label, color = TextPrimary, fontSize = 11.sp) },
-                  onClick = {
-                    onUpdateLayer { it.copy(blendMode = mode) }
-                    blendDropdownExpanded = false
-                  }
+                  onClick = { onUpdateLayer { it.copy(blendMode = mode) }; blendDropdownExpanded = false }
                 )
               }
             }
@@ -398,211 +521,7 @@ fun LayerInspector(
       }
     }
 
-    // 4. PATTERN SPECIFIC CONTROLS
-    if (layer.type == LayerType.PATTERN) {
-      HorizontalDivider(color = StudioBorder)
-      CollapsibleSection(
-        title = "Pattern Configuration",
-        isExpanded = isPatternExpanded,
-        onToggle = { isPatternExpanded = !isPatternExpanded }
-      ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-          var patternDropdownExpanded by remember { mutableStateOf(false) }
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-          ) {
-            Text("Pattern Type:", color = TextSecondary, fontSize = 11.sp)
-            Box {
-              Box(
-                modifier = Modifier
-                  .clip(RoundedCornerShape(4.dp))
-                  .background(StudioPanelElevated)
-                  .border(1.dp, StudioBorder, RoundedCornerShape(4.dp))
-                  .clickable { patternDropdownExpanded = true }
-                  .padding(horizontal = 8.dp, vertical = 4.dp)
-              ) {
-                Text(layer.patternType.label, color = AccentGreen, fontSize = 11.sp)
-              }
-              DropdownMenu(
-                expanded = patternDropdownExpanded,
-                onDismissRequest = { patternDropdownExpanded = false },
-                modifier = Modifier.background(StudioPanelElevated)
-              ) {
-                KitPatternType.values().forEach { pt ->
-                  DropdownMenuItem(
-                    text = { Text(pt.label, color = TextPrimary, fontSize = 11.sp) },
-                    onClick = {
-                      onUpdateLayer { it.copy(patternType = pt) }
-                      patternDropdownExpanded = false
-                    }
-                  )
-                }
-              }
-            }
-          }
-
-          // Density / Frequency Slider
-          Column {
-            Text("Frequency / Stripe Count: ${layer.patternFrequency}", color = TextSecondary, fontSize = 10.sp)
-            Slider(
-              value = layer.patternFrequency.toFloat(),
-              onValueChange = { f -> onUpdateLayer { it.copy(patternFrequency = f.roundToInt()) } },
-              valueRange = 2f..20f,
-              steps = 18,
-              colors = SliderDefaults.colors(thumbColor = AccentGreen, activeTrackColor = AccentGreen)
-            )
-          }
-        }
-      }
-    }
-
-    // 5. TEXT SPECIFIC CONTROLS
-    if (layer.type == LayerType.TEXT) {
-      HorizontalDivider(color = StudioBorder)
-      CollapsibleSection(
-        title = "Typography & Squad Numbers",
-        isExpanded = isTextExpanded,
-        onToggle = { isTextExpanded = !isTextExpanded }
-      ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-          OutlinedTextField(
-            value = layer.text,
-            onValueChange = { t -> onUpdateLayer { it.copy(text = t) } },
-            label = { Text("Text / Number") },
-            modifier = Modifier
-              .fillMaxWidth()
-              .testTag("text_input_field"),
-            colors = OutlinedTextFieldDefaults.colors(
-              focusedContainerColor = StudioPanelElevated,
-              unfocusedContainerColor = StudioPanelElevated,
-              focusedTextColor = TextPrimary,
-              unfocusedTextColor = TextPrimary,
-              focusedBorderColor = AccentGreen,
-              unfocusedBorderColor = StudioBorder
-            )
-          )
-
-          // Quick Number Chips
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-          ) {
-            listOf("7", "9", "10", "11", "23").forEach { num ->
-              Box(
-                modifier = Modifier
-                  .clip(RoundedCornerShape(4.dp))
-                  .background(StudioPanelElevated)
-                  .border(1.dp, StudioBorder, RoundedCornerShape(4.dp))
-                  .clickable { onUpdateLayer { it.copy(text = num, textSize = 54f) } }
-                  .padding(horizontal = 8.dp, vertical = 4.dp)
-              ) {
-                Text(num, color = TextPrimary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-              }
-            }
-          }
-
-          // Font Selector
-          var fontDropdownExpanded by remember { mutableStateOf(false) }
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-          ) {
-            Text("Font Style:", color = TextSecondary, fontSize = 11.sp)
-            Box {
-              Box(
-                modifier = Modifier
-                  .clip(RoundedCornerShape(4.dp))
-                  .background(StudioPanelElevated)
-                  .border(1.dp, StudioBorder, RoundedCornerShape(4.dp))
-                  .clickable { fontDropdownExpanded = true }
-                  .padding(horizontal = 8.dp, vertical = 4.dp)
-              ) {
-                Text(layer.textFont.label, color = TextPrimary, fontSize = 11.sp)
-              }
-              DropdownMenu(
-                expanded = fontDropdownExpanded,
-                onDismissRequest = { fontDropdownExpanded = false },
-                modifier = Modifier.background(StudioPanelElevated)
-              ) {
-                TextFont.values().forEach { f ->
-                  DropdownMenuItem(
-                    text = { Text(f.label, color = TextPrimary, fontSize = 11.sp) },
-                    onClick = {
-                      onUpdateLayer { it.copy(textFont = f) }
-                      fontDropdownExpanded = false
-                    }
-                  )
-                }
-              }
-            }
-          }
-
-          // Outline Stroke
-          Column {
-            Text("Outline Stroke: ${layer.strokeWidth.roundToInt()}px", color = TextSecondary, fontSize = 10.sp)
-            Slider(
-              value = layer.strokeWidth,
-              onValueChange = { sw -> onUpdateLayer { it.copy(strokeWidth = sw) } },
-              valueRange = 0f..8f,
-              colors = SliderDefaults.colors(thumbColor = AccentGreen, activeTrackColor = AccentGreen)
-            )
-          }
-        }
-      }
-    }
-
-    // 6. LOGO SPECIFIC CONTROLS
-    if (layer.type == LayerType.LOGO) {
-      HorizontalDivider(color = StudioBorder)
-      CollapsibleSection(
-        title = "Logo & Sponsor Library",
-        isExpanded = isLogoExpanded,
-        onToggle = { isLogoExpanded = !isLogoExpanded }
-      ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-          var logoDropdownExpanded by remember { mutableStateOf(false) }
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-          ) {
-            Text("Emblem:", color = TextSecondary, fontSize = 11.sp)
-            Box {
-              Box(
-                modifier = Modifier
-                  .clip(RoundedCornerShape(4.dp))
-                  .background(StudioPanelElevated)
-                  .border(1.dp, StudioBorder, RoundedCornerShape(4.dp))
-                  .clickable { logoDropdownExpanded = true }
-                  .padding(horizontal = 8.dp, vertical = 4.dp)
-              ) {
-                Text(layer.logoType.label, color = AccentGreen, fontSize = 11.sp)
-              }
-              DropdownMenu(
-                expanded = logoDropdownExpanded,
-                onDismissRequest = { logoDropdownExpanded = false },
-                modifier = Modifier.background(StudioPanelElevated)
-              ) {
-                LogoType.values().forEach { lt ->
-                  DropdownMenuItem(
-                    text = { Text("${lt.category}: ${lt.label}", color = TextPrimary, fontSize = 11.sp) },
-                    onClick = {
-                      onUpdateLayer { it.copy(logoType = lt) }
-                      logoDropdownExpanded = false
-                    }
-                  )
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // 7. MASK SECTION
+    // 6. MASK SECTION
     HorizontalDivider(color = StudioBorder)
     CollapsibleSection(
       title = "Mask Clipping",
@@ -635,10 +554,7 @@ fun LayerInspector(
             LayerMask.values().forEach { m ->
               DropdownMenuItem(
                 text = { Text(m.label, color = TextPrimary, fontSize = 11.sp) },
-                onClick = {
-                  onUpdateLayer { it.copy(mask = m) }
-                  maskDropdownExpanded = false
-                }
+                onClick = { onUpdateLayer { it.copy(mask = m) }; maskDropdownExpanded = false }
               )
             }
           }
@@ -646,7 +562,7 @@ fun LayerInspector(
       }
     }
 
-    // 8. MATERIAL SECTION
+    // 7. MATERIAL SECTION
     HorizontalDivider(color = StudioBorder)
     CollapsibleSection(
       title = "Material & 3D Resa",
@@ -654,27 +570,39 @@ fun LayerInspector(
       onToggle = { isMaterialExpanded = !isMaterialExpanded }
     ) {
       Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Column {
-          Text("Shininess / Gloss: ${layer.shininess.roundToInt()}%", color = TextSecondary, fontSize = 10.sp)
-          Slider(
-            value = layer.shininess,
-            onValueChange = { s -> onUpdateLayer { it.copy(shininess = s) } },
-            valueRange = 0f..100f,
-            colors = SliderDefaults.colors(thumbColor = AccentGreen, activeTrackColor = AccentGreen)
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Text("Custom Shininess / Metalness", color = TextPrimary, fontSize = 11.sp)
+          Switch(
+            checked = layer.customMaterialEnabled,
+            onCheckedChange = { cme -> onUpdateLayer { it.copy(customMaterialEnabled = cme) } },
+            colors = SwitchDefaults.colors(checkedThumbColor = AccentGreen, checkedTrackColor = Color(0xFF14532D))
           )
         }
 
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-          Text("Follow Body Warp", color = TextSecondary, fontSize = 11.sp)
-          Switch(
-            checked = layer.followBodyShape,
-            onCheckedChange = { f -> onUpdateLayer { it.copy(followBodyShape = f) } },
-            colors = SwitchDefaults.colors(checkedThumbColor = AccentGreen, checkedTrackColor = Color(0xFF14532D))
-          )
+        if (layer.customMaterialEnabled) {
+          Column {
+            Text("Shininess: ${layer.customShininess.roundToInt()}%", color = TextSecondary, fontSize = 10.sp)
+            Slider(
+              value = layer.customShininess,
+              onValueChange = { s -> onUpdateLayer { it.copy(customShininess = s) } },
+              valueRange = 0f..100f,
+              colors = SliderDefaults.colors(thumbColor = AccentGreen, activeTrackColor = AccentGreen)
+            )
+          }
+
+          Column {
+            Text("Metalness: ${layer.customMetalness.roundToInt()}%", color = TextSecondary, fontSize = 10.sp)
+            Slider(
+              value = layer.customMetalness,
+              onValueChange = { m -> onUpdateLayer { it.copy(customMetalness = m) } },
+              valueRange = 0f..100f,
+              colors = SliderDefaults.colors(thumbColor = AccentGreen, activeTrackColor = AccentGreen)
+            )
+          }
         }
       }
     }
@@ -682,22 +610,11 @@ fun LayerInspector(
 
   // Color picker dialog
   if (colorPickerTarget != null) {
-    val initialColor = when (colorPickerTarget) {
-      "secondary" -> layer.secondaryColor
-      "stroke" -> layer.strokeColor
-      else -> layer.primaryColor
-    }
     ColorPickerDialog(
-      initialColor = initialColor,
-      title = "Select ${colorPickerTarget?.replaceFirstChar { it.uppercase() }} Color",
+      initialColor = layer.primaryColor,
+      title = "Select Layer Color",
       onColorSelected = { col ->
-        onUpdateLayer {
-          when (colorPickerTarget) {
-            "secondary" -> it.copy(secondaryColor = col)
-            "stroke" -> it.copy(strokeColor = col)
-            else -> it.copy(primaryColor = col)
-          }
-        }
+        onUpdateLayer { it.copy(primaryColor = col) }
         colorPickerTarget = null
       },
       onDismiss = { colorPickerTarget = null }

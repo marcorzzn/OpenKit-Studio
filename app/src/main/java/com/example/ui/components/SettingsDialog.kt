@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -41,10 +40,10 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.model.CollarStyle
+import com.example.model.CollarTemplate
 import com.example.model.KitProject
 import com.example.model.LightingPreset
-import com.example.model.ModelStyle
+import com.example.model.ModelFit
 import com.example.ui.theme.AccentGreen
 import com.example.ui.theme.StudioBorder
 import com.example.ui.theme.StudioPanelBg
@@ -126,13 +125,13 @@ fun SettingsDialog(
 
         HorizontalDivider(color = StudioBorder)
 
-        // 3D Model Style
+        // 3D Model Fit
         Row(
           modifier = Modifier.fillMaxWidth(),
           verticalAlignment = Alignment.CenterVertically,
           horizontalArrangement = Arrangement.SpaceBetween
         ) {
-          Text("3D Model Silhouette:", color = TextSecondary, fontSize = 11.sp)
+          Text("Model Fit Variant:", color = TextSecondary, fontSize = 11.sp)
           Box {
             Box(
               modifier = Modifier
@@ -142,18 +141,18 @@ fun SettingsDialog(
                 .clickable { modelDropdownExpanded = true }
                 .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
-              Text(project.modelStyle.label, color = AccentGreen, fontSize = 11.sp)
+              Text(project.modelFit.label, color = AccentGreen, fontSize = 11.sp)
             }
             DropdownMenu(
               expanded = modelDropdownExpanded,
               onDismissRequest = { modelDropdownExpanded = false },
               modifier = Modifier.background(StudioPanelElevated)
             ) {
-              ModelStyle.values().forEach { ms ->
+              ModelFit.values().forEach { mf ->
                 DropdownMenuItem(
-                  text = { Text(ms.label, color = TextPrimary, fontSize = 11.sp) },
+                  text = { Text(mf.label, color = TextPrimary, fontSize = 11.sp) },
                   onClick = {
-                    onUpdateProject { it.copy(modelStyle = ms) }
+                    onUpdateProject { it.copy(modelFit = mf) }
                     modelDropdownExpanded = false
                   }
                 )
@@ -198,13 +197,13 @@ fun SettingsDialog(
           }
         }
 
-        // Collar Style
+        // Collar Template
         Row(
           modifier = Modifier.fillMaxWidth(),
           verticalAlignment = Alignment.CenterVertically,
           horizontalArrangement = Arrangement.SpaceBetween
         ) {
-          Text("Collar Cut Style:", color = TextSecondary, fontSize = 11.sp)
+          Text("Collar Template:", color = TextSecondary, fontSize = 11.sp)
           Box {
             Box(
               modifier = Modifier
@@ -214,18 +213,18 @@ fun SettingsDialog(
                 .clickable { collarDropdownExpanded = true }
                 .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
-              Text(project.collarStyle.label, color = AccentGreen, fontSize = 11.sp)
+              Text(project.collarTemplate.label, color = AccentGreen, fontSize = 11.sp)
             }
             DropdownMenu(
               expanded = collarDropdownExpanded,
               onDismissRequest = { collarDropdownExpanded = false },
               modifier = Modifier.background(StudioPanelElevated)
             ) {
-              CollarStyle.values().forEach { cs ->
+              CollarTemplate.values().forEach { ct ->
                 DropdownMenuItem(
-                  text = { Text(cs.label, color = TextPrimary, fontSize = 11.sp) },
+                  text = { Text(ct.label, color = TextPrimary, fontSize = 11.sp) },
                   onClick = {
-                    onUpdateProject { it.copy(collarStyle = cs) }
+                    onUpdateProject { it.copy(collarTemplate = ct) }
                     collarDropdownExpanded = false
                   }
                 )

@@ -1,7 +1,6 @@
 package com.example
 
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -25,8 +24,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Checkroom
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.Numbers
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.ViewInAr
 import androidx.compose.material3.Icon
@@ -44,20 +44,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.model.KitComponentType
-import com.example.model.KitLayer
 import com.example.ui.components.CompetitionBanner
 import com.example.ui.components.ComponentIconRail
+import com.example.ui.components.ExportDialog
 import com.example.ui.components.KitVisionDialog
 import com.example.ui.components.LayerInspector
 import com.example.ui.components.LayerPanel
 import com.example.ui.components.MinikitView
+import com.example.ui.components.NumbersPanel
+import com.example.ui.components.PatternLibraryDialog
 import com.example.ui.components.SettingsDialog
 import com.example.ui.components.Texture2DView
 import com.example.ui.components.TopNavBar
@@ -67,8 +68,6 @@ import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.theme.StudioBg
 import com.example.ui.theme.StudioBorder
 import com.example.ui.theme.StudioPanelBg
-import com.example.ui.theme.StudioPanelElevated
-import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import com.example.ui.viewmodel.KitEditorViewModel
 import com.example.ui.viewmodel.StudioTab
@@ -89,7 +88,8 @@ class MainActivity : ComponentActivity() {
 enum class MobileSheetMode {
   NONE,
   LAYERS,
-  INSPECTOR
+  INSPECTOR,
+  NUMBERS
 }
 
 @Composable
@@ -122,8 +122,12 @@ fun OpenKitStudioScreen(viewModel: KitEditorViewModel) {
     }
   }
 
+  // Modals
   var isKitVisionDialogOpen by remember { mutableStateOf(false) }
   var isSettingsDialogOpen by remember { mutableStateOf(false) }
+  var isExportDialogOpen by remember { mutableStateOf(false) }
+  var isPatternLibraryOpen by remember { mutableStateOf(false) }
+  var isNumbersPanelOpen by remember { mutableStateOf(false) }
   var mobileSheetMode by remember { mutableStateOf(MobileSheetMode.NONE) }
 
   val currentComponentLayers = project.getLayersFor(selectedComponent)
@@ -137,22 +141,25 @@ fun OpenKitStudioScreen(viewModel: KitEditorViewModel) {
       Column {
         TopNavBar(
           projectName = project.name,
+          currentSport = project.sport,
           activeTab = activeTab,
           canUndo = canUndo,
           canRedo = canRedo,
+          onSelectSport = viewModel::setSport,
           onTabSelected = { tab ->
-            if (tab == StudioTab.KIT_VISION_AI) {
-              isKitVisionDialogOpen = true
-            } else {
-              viewModel.setTab(tab)
+            when (tab) {
+              StudioTab.KIT_VISION_AI -> isKitVisionDialogOpen = true
+              StudioTab.NUMBERS_NAMES -> isNumbersPanelOpen = true
+              else -> viewModel.setTab(tab)
             }
           },
           onUndo = viewModel::undo,
           onRedo = viewModel::redo,
           onRandomize = viewModel::randomizeColors,
           onSave = viewModel::saveProjectJson,
-          onExport = viewModel::exportKitRender,
-          onLoadPreset = viewModel::loadPreset
+          onExport = { isExportDialogOpen = true },
+          onLoadPreset = viewModel::loadPreset,
+          onSelectCameraPreset = viewModel::setCameraPreset
         )
 
         CompetitionBanner(
@@ -185,6 +192,8 @@ fun OpenKitStudioScreen(viewModel: KitEditorViewModel) {
             selectedComponent = selectedComponent,
             layers = currentComponentLayers,
             selectedLayerId = selectedLayerId,
+            currentCollar = project.collarTemplate,
+            currentModelFit = project.modelFit,
             onSelectLayer = viewModel::selectLayer,
             onAddLayer = viewModel::addLayer,
             onDeleteLayer = viewModel::deleteLayer,
@@ -192,9 +201,13 @@ fun OpenKitStudioScreen(viewModel: KitEditorViewModel) {
             onToggleLock = viewModel::toggleLayerLock,
             onMoveUp = viewModel::moveLayerUp,
             onMoveDown = viewModel::moveLayerDown,
+            onUpdateLayer = viewModel::updateSelectedLayer,
+            onSelectCollar = viewModel::setCollarTemplate,
+            onSelectModelFit = viewModel::setModelFit,
             onKitVisionClick = { isKitVisionDialogOpen = true },
             onSaveClick = viewModel::saveProjectJson,
             onLoadClick = { isSettingsDialogOpen = true },
+            onOpenPatternLibrary = { isPatternLibraryOpen = true },
             modifier = Modifier.width(260.dp)
           )
 
@@ -220,8 +233,8 @@ fun OpenKitStudioScreen(viewModel: KitEditorViewModel) {
                   onToggleWireframe = viewModel::toggleWireframe,
                   onToggleAutoRotate = viewModel::toggleAutoRotate,
                   onSelectComponent = viewModel::selectComponent,
-                  onExportPng = viewModel::exportKitRender,
-                  onExportTexture = viewModel::exportTextureFlat,
+                  onExportPng = { isExportDialogOpen = true },
+                  onExportTexture = { isExportDialogOpen = true },
                   onMinikitClick = { viewModel.setTab(StudioTab.MINIKIT_CARD) }
                 )
               }
@@ -236,35 +249,43 @@ fun OpenKitStudioScreen(viewModel: KitEditorViewModel) {
                   project = project,
                   selectedComponent = selectedComponent,
                   textureBitmap = currentBmp,
-                  onExportFlatTexture = viewModel::exportTextureFlat
+                  onExportFlatTexture = { isExportDialogOpen = true }
                 )
               }
               StudioTab.MINIKIT_CARD -> {
                 MinikitView(
                   project = project,
-                  onExportMinikit = viewModel::exportKitRender
+                  onExportMinikit = { isExportDialogOpen = true }
                 )
               }
-              StudioTab.KIT_VISION_AI -> {
-                // Handled in modal dialog
-              }
+              StudioTab.NUMBERS_NAMES, StudioTab.KIT_VISION_AI -> {}
             }
           }
 
-          // 4. Right Layer Inspector
-          AnimatedVisibility(visible = isLayerInspectorOpen) {
-            LayerInspector(
-              layer = selectedLayer,
-              onUpdateLayer = viewModel::updateSelectedLayer,
-              onClose = viewModel::toggleInspector,
-              modifier = Modifier.width(280.dp)
+          // 4. Right Inspector Panel (Switches between Layer Inspector and Numbers Panel)
+          if (isNumbersPanelOpen) {
+            NumbersPanel(
+              project = project,
+              onUpdateNumbers = viewModel::updateNumbers,
+              onUpdatePlayerName = viewModel::updatePlayerName,
+              onUpdateBadges = viewModel::updateBadges,
+              onClose = { isNumbersPanelOpen = false },
+              modifier = Modifier.width(290.dp)
             )
+          } else {
+            AnimatedVisibility(visible = isLayerInspectorOpen) {
+              LayerInspector(
+                layer = selectedLayer,
+                onUpdateLayer = viewModel::updateSelectedLayer,
+                onClose = viewModel::toggleInspector,
+                modifier = Modifier.width(290.dp)
+              )
+            }
           }
         }
       } else {
         // Mobile Handheld Vertical Layout
         Column(modifier = Modifier.fillMaxSize()) {
-          // Center Viewport (Takes majority of screen)
           Box(modifier = Modifier.weight(1f)) {
             when (activeTab) {
               StudioTab.VIEW_3D -> {
@@ -286,8 +307,8 @@ fun OpenKitStudioScreen(viewModel: KitEditorViewModel) {
                   onToggleWireframe = viewModel::toggleWireframe,
                   onToggleAutoRotate = viewModel::toggleAutoRotate,
                   onSelectComponent = viewModel::selectComponent,
-                  onExportPng = viewModel::exportKitRender,
-                  onExportTexture = viewModel::exportTextureFlat,
+                  onExportPng = { isExportDialogOpen = true },
+                  onExportTexture = { isExportDialogOpen = true },
                   onMinikitClick = { viewModel.setTab(StudioTab.MINIKIT_CARD) }
                 )
               }
@@ -302,69 +323,89 @@ fun OpenKitStudioScreen(viewModel: KitEditorViewModel) {
                   project = project,
                   selectedComponent = selectedComponent,
                   textureBitmap = currentBmp,
-                  onExportFlatTexture = viewModel::exportTextureFlat
+                  onExportFlatTexture = { isExportDialogOpen = true }
                 )
               }
               StudioTab.MINIKIT_CARD -> {
                 MinikitView(
                   project = project,
-                  onExportMinikit = viewModel::exportKitRender
+                  onExportMinikit = { isExportDialogOpen = true }
                 )
               }
-              StudioTab.KIT_VISION_AI -> {}
+              StudioTab.NUMBERS_NAMES, StudioTab.KIT_VISION_AI -> {}
             }
 
-            // Mobile Bottom Sheet Drawer if active
+            // Mobile Bottom Sheet
             if (mobileSheetMode != MobileSheetMode.NONE) {
               Box(
                 modifier = Modifier
                   .fillMaxWidth()
-                  .fillMaxHeight(0.55f)
+                  .fillMaxHeight(0.60f)
                   .align(Alignment.BottomCenter)
                   .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
                   .background(StudioPanelBg)
                   .border(1.dp, StudioBorder, RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
               ) {
-                if (mobileSheetMode == MobileSheetMode.LAYERS) {
-                  LayerPanel(
-                    selectedComponent = selectedComponent,
-                    layers = currentComponentLayers,
-                    selectedLayerId = selectedLayerId,
-                    onSelectLayer = { id ->
-                      viewModel.selectLayer(id)
-                      mobileSheetMode = MobileSheetMode.INSPECTOR
-                    },
-                    onAddLayer = viewModel::addLayer,
-                    onDeleteLayer = viewModel::deleteLayer,
-                    onToggleVisibility = viewModel::toggleLayerVisibility,
-                    onToggleLock = viewModel::toggleLayerLock,
-                    onMoveUp = viewModel::moveLayerUp,
-                    onMoveDown = viewModel::moveLayerDown,
-                    onKitVisionClick = { isKitVisionDialogOpen = true },
-                    onSaveClick = viewModel::saveProjectJson,
-                    onLoadClick = { isSettingsDialogOpen = true },
-                    modifier = Modifier.fillMaxSize()
-                  )
-                } else if (mobileSheetMode == MobileSheetMode.INSPECTOR) {
-                  LayerInspector(
-                    layer = selectedLayer,
-                    onUpdateLayer = viewModel::updateSelectedLayer,
-                    onClose = { mobileSheetMode = MobileSheetMode.NONE },
-                    modifier = Modifier.fillMaxSize()
-                  )
+                when (mobileSheetMode) {
+                  MobileSheetMode.LAYERS -> {
+                    LayerPanel(
+                      selectedComponent = selectedComponent,
+                      layers = currentComponentLayers,
+                      selectedLayerId = selectedLayerId,
+                      currentCollar = project.collarTemplate,
+                      currentModelFit = project.modelFit,
+                      onSelectLayer = { id ->
+                        viewModel.selectLayer(id)
+                        mobileSheetMode = MobileSheetMode.INSPECTOR
+                      },
+                      onAddLayer = viewModel::addLayer,
+                      onDeleteLayer = viewModel::deleteLayer,
+                      onToggleVisibility = viewModel::toggleLayerVisibility,
+                      onToggleLock = viewModel::toggleLayerLock,
+                      onMoveUp = viewModel::moveLayerUp,
+                      onMoveDown = viewModel::moveLayerDown,
+                      onUpdateLayer = viewModel::updateSelectedLayer,
+                      onSelectCollar = viewModel::setCollarTemplate,
+                      onSelectModelFit = viewModel::setModelFit,
+                      onKitVisionClick = { isKitVisionDialogOpen = true },
+                      onSaveClick = viewModel::saveProjectJson,
+                      onLoadClick = { isSettingsDialogOpen = true },
+                      onOpenPatternLibrary = { isPatternLibraryOpen = true },
+                      modifier = Modifier.fillMaxSize()
+                    )
+                  }
+                  MobileSheetMode.INSPECTOR -> {
+                    LayerInspector(
+                      layer = selectedLayer,
+                      onUpdateLayer = viewModel::updateSelectedLayer,
+                      onClose = { mobileSheetMode = MobileSheetMode.NONE },
+                      modifier = Modifier.fillMaxSize()
+                    )
+                  }
+                  MobileSheetMode.NUMBERS -> {
+                    NumbersPanel(
+                      project = project,
+                      onUpdateNumbers = viewModel::updateNumbers,
+                      onUpdatePlayerName = viewModel::updatePlayerName,
+                      onUpdateBadges = viewModel::updateBadges,
+                      onClose = { mobileSheetMode = MobileSheetMode.NONE },
+                      modifier = Modifier.fillMaxSize()
+                    )
+                  }
+                  MobileSheetMode.NONE -> {}
                 }
               }
             }
           }
 
-          // Bottom Bar for Mobile: Switch between 3D, Layers, Inspector, Kit Vision
+          // Bottom Bar for Mobile
           Row(
             modifier = Modifier
               .fillMaxWidth()
               .height(52.dp)
               .background(StudioPanelBg)
               .border(1.dp, StudioBorder)
-              .padding(horizontal = 8.dp),
+              .padding(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceAround
           ) {
@@ -379,7 +420,7 @@ fun OpenKitStudioScreen(viewModel: KitEditorViewModel) {
             )
 
             MobileNavButton(
-              title = "Layers (${currentComponentLayers.size})",
+              title = "Layers",
               icon = Icons.Default.Layers,
               isActive = mobileSheetMode == MobileSheetMode.LAYERS,
               onClick = {
@@ -397,10 +438,19 @@ fun OpenKitStudioScreen(viewModel: KitEditorViewModel) {
             )
 
             MobileNavButton(
-              title = "Kit Vision",
-              icon = Icons.Default.AutoAwesome,
+              title = "Numbers",
+              icon = Icons.Default.Numbers,
+              isActive = mobileSheetMode == MobileSheetMode.NUMBERS,
+              onClick = {
+                mobileSheetMode = if (mobileSheetMode == MobileSheetMode.NUMBERS) MobileSheetMode.NONE else MobileSheetMode.NUMBERS
+              }
+            )
+
+            MobileNavButton(
+              title = "Export",
+              icon = Icons.Default.Download,
               isActive = false,
-              onClick = { isKitVisionDialogOpen = true }
+              onClick = { isExportDialogOpen = true }
             )
           }
         }
@@ -408,12 +458,28 @@ fun OpenKitStudioScreen(viewModel: KitEditorViewModel) {
     }
   }
 
-  // Dialogs
+  // Modals
+  if (isPatternLibraryOpen) {
+    PatternLibraryDialog(
+      onPatternSelected = viewModel::addPatternFromLibrary,
+      onDismiss = { isPatternLibraryOpen = false }
+    )
+  }
+
+  if (isExportDialogOpen) {
+    ExportDialog(
+      project = project,
+      activeComponent = selectedComponent,
+      selectedLayer = selectedLayer,
+      viewportSnapshot = shirtBmp,
+      onDismiss = { isExportDialogOpen = false },
+      onExportSuccess = { msg -> viewModel.showToast(msg) }
+    )
+  }
+
   if (isKitVisionDialogOpen) {
     KitVisionDialog(
-      onApplyPreset = { presetName ->
-        viewModel.loadPreset(presetName)
-      },
+      onApplyPreset = viewModel::loadPreset,
       onDismiss = { isKitVisionDialogOpen = false }
     )
   }
@@ -438,7 +504,7 @@ fun MobileNavButton(
     modifier = Modifier
       .clip(RoundedCornerShape(8.dp))
       .clickable(onClick = onClick)
-      .padding(horizontal = 8.dp, vertical = 4.dp),
+      .padding(horizontal = 6.dp, vertical = 4.dp),
     horizontalAlignment = Alignment.CenterHorizontally
   ) {
     Icon(

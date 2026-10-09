@@ -19,12 +19,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.SportsSoccer
-import androidx.compose.material.icons.filled.ViewInAr
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -43,7 +43,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.model.CameraPreset
 import com.example.model.PresetsData
+import com.example.model.SportType
 import com.example.ui.theme.AccentGreen
 import com.example.ui.theme.StudioBorder
 import com.example.ui.theme.StudioPanelBg
@@ -55,18 +57,23 @@ import com.example.ui.viewmodel.StudioTab
 @Composable
 fun TopNavBar(
   projectName: String,
+  currentSport: SportType,
   activeTab: StudioTab,
   canUndo: Boolean,
   canRedo: Boolean,
+  onSelectSport: (SportType) -> Unit,
   onTabSelected: (StudioTab) -> Unit,
   onUndo: () -> Unit,
   onRedo: () -> Unit,
   onRandomize: () -> Unit,
   onSave: () -> Unit,
   onExport: () -> Unit,
-  onLoadPreset: (String) -> Unit
+  onLoadPreset: (String) -> Unit,
+  onSelectCameraPreset: (CameraPreset) -> Unit
 ) {
   var presetsMenuExpanded by remember { mutableStateOf(false) }
+  var sportMenuExpanded by remember { mutableStateOf(false) }
+  var cameraMenuExpanded by remember { mutableStateOf(false) }
 
   Column(
     modifier = Modifier
@@ -74,7 +81,7 @@ fun TopNavBar(
       .background(StudioPanelBg)
       .border(1.dp, StudioBorder)
   ) {
-    // Upper row: Branding, Undo/Redo, Presets & Actions
+    // Upper row: Branding, Sport Switcher, Undo/Redo, Presets & Export
     Row(
       modifier = Modifier
         .fillMaxWidth()
@@ -83,24 +90,42 @@ fun TopNavBar(
       verticalAlignment = Alignment.CenterVertically,
       horizontalArrangement = Arrangement.SpaceBetween
     ) {
-      // Left: Logo & Project Name
+      // Left: Logo, Sport Switcher & Project Name
       Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
       ) {
-        Box(
-          modifier = Modifier
-            .size(30.dp)
-            .clip(RoundedCornerShape(6.dp))
-            .background(AccentGreen),
-          contentAlignment = Alignment.Center
-        ) {
-          Icon(
-            imageVector = Icons.Default.SportsSoccer,
-            contentDescription = "OpenKit Logo",
-            tint = Color(0xFF052E16),
-            modifier = Modifier.size(18.dp)
-          )
+        // Sport Switcher Dropdown (Modulo 6)
+        Box {
+          Box(
+            modifier = Modifier
+              .clip(RoundedCornerShape(6.dp))
+              .background(AccentGreen)
+              .clickable { sportMenuExpanded = true }
+              .padding(horizontal = 6.dp, vertical = 4.dp),
+            contentAlignment = Alignment.Center
+          ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+              Text(currentSport.icon, fontSize = 14.sp)
+              Text("▼", color = Color(0xFF052E16), fontSize = 8.sp)
+            }
+          }
+
+          DropdownMenu(
+            expanded = sportMenuExpanded,
+            onDismissRequest = { sportMenuExpanded = false },
+            modifier = Modifier.background(StudioPanelElevated)
+          ) {
+            SportType.values().forEach { sport ->
+              DropdownMenuItem(
+                text = { Text("${sport.icon} ${sport.label}", color = TextPrimary, fontSize = 12.sp) },
+                onClick = {
+                  onSelectSport(sport)
+                  sportMenuExpanded = false
+                }
+              )
+            }
+          }
         }
 
         Column {
@@ -127,21 +152,21 @@ fun TopNavBar(
           )
         }
 
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(4.dp))
 
         // Undo / Redo
         IconButton(
           onClick = onUndo,
           enabled = canUndo,
           modifier = Modifier
-            .size(34.dp)
+            .size(32.dp)
             .testTag("undo_button")
         ) {
           Icon(
             imageVector = Icons.AutoMirrored.Filled.Undo,
             contentDescription = "Undo",
             tint = if (canUndo) TextPrimary else TextSecondary.copy(alpha = 0.4f),
-            modifier = Modifier.size(18.dp)
+            modifier = Modifier.size(16.dp)
           )
         }
 
@@ -149,24 +174,55 @@ fun TopNavBar(
           onClick = onRedo,
           enabled = canRedo,
           modifier = Modifier
-            .size(34.dp)
+            .size(32.dp)
             .testTag("redo_button")
         ) {
           Icon(
             imageVector = Icons.AutoMirrored.Filled.Redo,
             contentDescription = "Redo",
             tint = if (canRedo) TextPrimary else TextSecondary.copy(alpha = 0.4f),
-            modifier = Modifier.size(18.dp)
+            modifier = Modifier.size(16.dp)
           )
         }
       }
 
-      // Right: Presets, Randomize, Save, Export
+      // Right: Camera Presets, Templates, Randomize, Export
       Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp)
       ) {
-        // Presets Button
+        // Camera Presets Dropdown (Modulo 3)
+        Box {
+          Box(
+            modifier = Modifier
+              .size(32.dp)
+              .clip(RoundedCornerShape(6.dp))
+              .background(StudioPanelElevated)
+              .border(1.dp, StudioBorder, RoundedCornerShape(6.dp))
+              .clickable { cameraMenuExpanded = true },
+            contentAlignment = Alignment.Center
+          ) {
+            Icon(Icons.Default.CameraAlt, contentDescription = "Camera Angle", tint = TextPrimary, modifier = Modifier.size(16.dp))
+          }
+
+          DropdownMenu(
+            expanded = cameraMenuExpanded,
+            onDismissRequest = { cameraMenuExpanded = false },
+            modifier = Modifier.background(StudioPanelElevated)
+          ) {
+            CameraPreset.values().forEach { cp ->
+              DropdownMenuItem(
+                text = { Text(cp.label, color = TextPrimary, fontSize = 11.sp) },
+                onClick = {
+                  onSelectCameraPreset(cp)
+                  cameraMenuExpanded = false
+                }
+              )
+            }
+          }
+        }
+
+        // Templates Button
         Box {
           Box(
             modifier = Modifier
@@ -174,20 +230,12 @@ fun TopNavBar(
               .background(StudioPanelElevated)
               .border(1.dp, StudioBorder, RoundedCornerShape(6.dp))
               .clickable { presetsMenuExpanded = true }
-              .padding(horizontal = 8.dp, vertical = 5.dp)
+              .padding(horizontal = 8.dp, vertical = 6.dp)
               .testTag("presets_dropdown_button")
           ) {
-            Row(
-              verticalAlignment = Alignment.CenterVertically,
-              horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-              Icon(
-                imageVector = Icons.Default.Layers,
-                contentDescription = "Kits",
-                tint = AccentGreen,
-                modifier = Modifier.size(14.dp)
-              )
-              Text("Templates", color = TextPrimary, fontSize = 11.sp)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+              Icon(Icons.Default.Layers, contentDescription = "Kits", tint = AccentGreen, modifier = Modifier.size(14.dp))
+              Text("Kits", color = TextPrimary, fontSize = 11.sp)
             }
           }
 
@@ -211,34 +259,20 @@ fun TopNavBar(
         // Randomize
         IconButton(
           onClick = onRandomize,
-          modifier = Modifier
-            .size(32.dp)
-            .testTag("randomize_button")
+          modifier = Modifier.size(32.dp).testTag("randomize_button")
         ) {
-          Icon(
-            imageVector = Icons.Default.Casino,
-            contentDescription = "Randomize Colors",
-            tint = TextSecondary,
-            modifier = Modifier.size(18.dp)
-          )
+          Icon(Icons.Default.Casino, contentDescription = "Randomize", tint = TextSecondary, modifier = Modifier.size(18.dp))
         }
 
         // Save
         IconButton(
           onClick = onSave,
-          modifier = Modifier
-            .size(32.dp)
-            .testTag("save_project_button")
+          modifier = Modifier.size(32.dp).testTag("save_project_button")
         ) {
-          Icon(
-            imageVector = Icons.Default.Save,
-            contentDescription = "Save Kit",
-            tint = TextSecondary,
-            modifier = Modifier.size(18.dp)
-          )
+          Icon(Icons.Default.Save, contentDescription = "Save", tint = TextSecondary, modifier = Modifier.size(18.dp))
         }
 
-        // Export
+        // Export (Granular Studio Trigger)
         Box(
           modifier = Modifier
             .clip(RoundedCornerShape(6.dp))
@@ -247,22 +281,9 @@ fun TopNavBar(
             .padding(horizontal = 10.dp, vertical = 6.dp)
             .testTag("export_button")
         ) {
-          Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-          ) {
-            Icon(
-              imageVector = Icons.Default.Download,
-              contentDescription = "Export",
-              tint = Color(0xFF052E16),
-              modifier = Modifier.size(14.dp)
-            )
-            Text(
-              "Export",
-              color = Color(0xFF052E16),
-              fontWeight = FontWeight.Bold,
-              fontSize = 11.sp
-            )
+          Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Icon(Icons.Default.Download, contentDescription = "Export", tint = Color(0xFF052E16), modifier = Modifier.size(14.dp))
+            Text("Export", color = Color(0xFF052E16), fontWeight = FontWeight.Bold, fontSize = 11.sp)
           }
         }
       }
